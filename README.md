@@ -1,8 +1,8 @@
 # OS
 
-a)  pr1 | pr2 | pr3
-b) pr1 | pr2 > f.res
-c)  pr1 arg11 arg12 < f.dat | pr2 arg21 agr22
+## a)  pr1 | pr2 | pr3 
+## b) pr1 | pr2 > f.res
+## c)  pr1 arg11 arg12 < f.dat | pr2 arg21 agr22
 d) pr1 < f.dat > f.res
 e)  pr1 < f.dat | pr2 | pr3 > f.res
 f)  pr1 | pr2 >> f.res
