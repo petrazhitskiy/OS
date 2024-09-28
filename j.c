@@ -4,77 +4,56 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <sys/types.h>
 
-int main(int argc, char** argv) {
-    if (argc < 6) {
-        fprintf(stderr, "Usage: %s pr1 arg1 pr2 pr3 f.dat f.res\n", argv[0]);
-        exit(1);
-    }
+//e)  pr1 arg1 < if.dat | pr2 | pr3 > f.res &
 
-    int can1[2], can2[2];
-    pipe(can1); 
-    pipe(can2); 
+int main(int argc, char * argv[])
 
-    // Открываем файл f.dat для чтения
-    int fdat = open(argv[5], O_RDONLY);
-    if (fdat == -1) {
-        perror("Failed to open f.dat");
-        exit(1);
-    }
-
-    // Открываем файл f.res для записи (перезапись содержимого)
-    int fres = open(argv[6], O_WRONLY | O_CREAT | O_TRUNC, 0776);
-    if (fres == -1) {
-        perror("Failed to open f.res");
-        close(fdat);
-        exit(1);
-    }
-
-    // Процесс 1: pr1 arg1 < f.dat
-    if (fork() == 0) {
-        dup2(fdat, 0);    
-        dup2(can1[1], 1); 
-        close(fdat);
-        close(fres);
-        close(can1[0]);
-        close(can1[1]);
-        close(can2[0]);
-        close(can2[1]);
-        execlp(argv[1], argv[1], argv[2], NULL); 
-        perror("execlp pr1 failed");
-        exit(1);
-    }
-    close(fdat);
-
-    // Процесс 2: pr2
-    if (fork() == 0) {
-        dup2(can1[0], 0);  
-        dup2(can2[1], 1); 
-        close(fres);
-        close(can1[0]);
-        close(can1[1]);
-        close(can2[0]);
-        close(can2[1]);
-        execlp(argv[3], argv[3], NULL); 
-        perror("execlp pr2 failed");
-        exit(1);
-    }
-    close(can1[0]);
-    close(can1[1]);
-
-    // Процесс 3: pr3 > f.res
-    if (fork() == 0) {
-        dup2(can2[0], 0); 
-        dup2(fres, 1);  
-        close(fres);
-        close(can2[0]);
-        close(can2[1]);
-        execlp(argv[4], argv[4], NULL); 
-        perror("execlp pr3 failed");
-        exit(1);
-    }
-    close(can2[0]);
-    close(can2[1]);
-    close(fres);
-    return 0;
+{
+	int fd1[2], fd2[2], f, r;
+	pipe(fd1);
+	pipe(fd2);
+	r = open(argv[3], O_RDONLY | O_CREAT, 0776);
+	f=open(argv[6], O_WRONLY|O_CREAT|O_TRUNC, 0776);
+	if(fork()==0)
+	{
+		close (fd1[0]);
+		dup2(fd1[1], 1);	
+		dup2(r, 0);
+		close(fd1[1]);
+        	close(r);
+        	execlp(argv[1],argv[1], argv[2], NULL);
+        	perror("execlp");
+        	exit(1);	
+	}
+	
+	if (fork()==0)
+	{
+		dup2(fd1[0], 0);
+		close(fd1[0]);
+		close (fd1[0]);
+		dup2(fd1[1], 1);
+		close(fd1[1]);
+		execlp(argv[4],argv[4], NULL);
+        	perror("execlp");
+        	exit(1);	
+	}
+	
+	if (fork()==0)
+	{
+		dup2(fd1[0], 0);
+		close(fd1[1]);
+		dup2(f,1);
+ 		close(f);
+		execlp(argv[5],argv[5], NULL);
+        	perror("execlp");
+        	exit(1);	
+	}
+	
+	close(fd1[0]);
+	close(fd2[0]);
+ 	wait(NULL);
+ 	wait(NULL);
+ 	return 0;
 }
