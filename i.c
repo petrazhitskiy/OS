@@ -11,11 +11,12 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    int can1[2];
+    int can1[2], can2[2];
     pipe(can1); // Создаем первый канал для связи pr1 -> pr2
+    pipe(can2); // Создаем второй канал для связи pr2 -> pr3
 
     // Открываем файл f.dat для чтения
-    int fdat = open(argv[5], O_RDONLY | O_CREAT, 0776);
+    int fdat = open(argv[5], O_RDONLY);
     if (fdat == -1) {
         perror("Failed to open f.dat");
         exit(1);
@@ -33,22 +34,32 @@ int main(int argc, char** argv) {
     if (fork() == 0) {
         dup2(fdat, 0);
         dup2(can1[1], 1);
+        
         close(fdat);
         close(fres);
         close(can1[0]);
-        close(can1[1]); 
+        close(can1[1]);
+        close(can2[0]);
+        close(can2[1]);
+        
         execlp(argv[1], argv[1], argv[2], NULL);
         perror("execlp pr1 failed");
         exit(1);
     }
 
     close(fdat);
+    wait(NULL);
+
     // Процесс 2: pr2
     if (fork() == 0) {
-        dup2(can1[1], 1);
+        dup2(can1[0], 0);
+        dup2(can2[1], 1);
         close(fres);
         close(can1[0]);
         close(can1[1]);
+        close(can2[0]);
+        close(can2[1]);
+        
         execlp(argv[3], argv[3], NULL);
         perror("execlp pr2 failed");
         exit(1);
@@ -58,17 +69,25 @@ int main(int argc, char** argv) {
     close(can1[0]);
     close(can1[1]);
 
+    // Ждем завершения pr2
+    wait(NULL);
+
     // Процесс 3: pr3 >> f.res
     if (fork() == 0) {
-        dup2(can1[0], 0);
+        dup2(can2[0], 0);
         dup2(fres, 1);
+
         close(fres);
-        close(can1[0]);
-        close(can1[1]);
+        close(can2[0]);
+        close(can2[1]);
+
         execlp(argv[4], argv[4], NULL);
         perror("execlp pr3 failed");
         exit(1);
     }
+    // Закрываем второй канал и файл f.res в родительском процессе
+    close(can2[0]);
+    close(can2[1]);
     close(fres);
     wait(NULL);
 
